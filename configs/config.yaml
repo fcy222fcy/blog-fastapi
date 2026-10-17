@@ -1,0 +1,49 @@
+# 基线配置。运行时可用 .env 或环境变量覆盖（环境变量优先级最高）。
+# 字段结构与 Go 版 configs/config.yaml 完全一致，方便两边共用一份部署配置。
+
+server:
+  port: 9090
+
+# 数据库二选一：
+#   1) 填写下面 mysql 段（生产）
+#   2) 用环境变量 DATABASE_URL 指向 SQLite（本地零依赖）
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  username: root
+  password: ""
+  dbname: blog
+
+redis:
+  host: ""
+  port: 6379
+  password: ""
+  db: 0
+
+jwt:
+  secret: change-me-in-env
+  expire_hour: 168
+
+log:
+  level: info
+  filename: logs/app.log
+
+email:
+  host: ""
+  port: 465
+  username: ""
+  password: ""
+  from: "博客评论通知"
+  from_email: ""
+
+blogger:
+  user_id: 1
+  username: admin
+  password: ""
+  nickname: 博主
+  email: ""
+  avatar: "/avatar.jpg"
+
+app:
+  seed_data: true
+  upload_dir: "uploads"

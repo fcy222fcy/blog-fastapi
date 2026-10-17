@@ -1,0 +1,86 @@
+# 与 Go 版的 docker-compose 保持同样的服务拓扑：
+# MySQL + Redis + 后端 + Nginx 网关。前端静态站点由 Nginx 直接托管。
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: blog-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root123456}
+      MYSQL_DATABASE: ${DB_NAME:-blog}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_ROOT_PASSWORD:-root123456}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: blog-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: blog-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 9090
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:-root123456}
+      DB_NAME: ${DB_NAME:-blog}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      BLOGGER_USER_ID: ${BLOGGER_USER_ID:-1}
+      BLOGGER_USERNAME: ${BLOGGER_USERNAME:-admin}
+      BLOGGER_PASSWORD: ${BLOGGER_PASSWORD:-admin123456}
+      BLOGGER_NICKNAME: ${BLOGGER_NICKNAME:-博主}
+      BLOGGER_EMAIL: ${BLOGGER_EMAIL:-blogger@example.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      TZ: Asia/Shanghai
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+    ports:
+      - "${API_PORT:-9090}:9090"
+
+  nginx:
+    image: nginx:alpine
+    container_name: blog-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - uploads:/var/www/uploads:ro
+    ports:
+      - "${GATEWAY_PORT:-80}:80"
+
+volumes:
+  mysql-data:
+  redis-data:
+  uploads:
+  logs:
